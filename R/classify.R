@@ -11,9 +11,9 @@
 
 #' Finds leaf nodes, i.e. classes without children
 #'
-#' @param classes. Put obj$classes here, i.e. a tree of class definitions 
+#' @param classes Put obj$classes here, i.e. a tree of class definitions 
 #' created with the rule function.
-#' @param invert. If TRUE, return classes that are NOT leafs instead of leaf nodes.
+#' @param invert If TRUE, return classes that are NOT leafs instead of leaf nodes.
 #'
 #' @return Character vector with the tree's leafs.
 #' @keywords internal
@@ -111,6 +111,7 @@ tree_descendants <- function(classes, class, leafs) {
 #' @return A factor with cell type labels.
 #' @template cellpypes_obj
 #' @template handling_overlap
+#' @template knn_refine
 #' @export
 #'
 #' @examples
@@ -120,10 +121,12 @@ classify <- function(
   classes=NULL,
     # If NULL, uses all childless classes (leafs).
     # unique(obj$classes$class) returns both leafs and parents.
+  knn_refine = 0,
   replace_overlap_with="Unassigned", # alternatives: 'common_parent', NA or any scalar character
-  return_logical_matrix =FALSE # ignore overlap/unassigned rules and just output 
+  return_logical_matrix =FALSE, # ignore overlap/unassigned rules and just output 
   # a logical matrix. If a single class is supplied, the matrix has exactly one
   # column and the user can pipe it into "drop" to convert it to a vector.
+  overdispersion=0.01
 ) {
   # checks specific for classify: classes have to be present in obj$classes
   # other sanity checks:
@@ -157,7 +160,7 @@ classify <- function(
   #   so we can use rules_info to subset rules_eval below.
   rules_info <-obj$rules[obj$rules$class %in% relevant_classes, ]
   rules_eval <- mapply(FUN=evaluate_rule,
-                       MoreArgs=list(obj=obj),
+                       MoreArgs=list(obj=obj, overdispersion=overdispersion),
                        feature=rules_info$feature,
                        operator=rules_info$operator,
                        threshold=rules_info$threshold)
@@ -183,7 +186,7 @@ classify <- function(
  
    
   class_res <- res[, classes, drop=FALSE]
-  class_factor <- rep("Unassigned", nrow(class_res))
+  class_factor <- rep("Unassigned", nrow(class_res)) # now character, later factor
   the_leafs <- tree_leaf_nodes(obj$classes) 
   for (i in 1:ncol(class_res)) {
     # If a class has overlap with one of its ancestor classes, 
@@ -200,6 +203,16 @@ classify <- function(
   # replace overlap, except for overlap with ones ancestors.
   class_factor[base::rowSums(class_res)>1] <- replace_overlap_with
   
+  
+  # It's unambiguous when cell barcodes are returned together with the labels:
+  names(class_factor) <- colnames(obj$raw)
+  
+  # returns character, so has to come before factor conversion:
+  if(knn_refine > 0) class_factor <- knn_refine(class_factor,
+                                                obj$neighbors,
+                                                min_knn_prob = knn_refine)
+
+   
   # Unassigned class may or may not be present, under different names:
   #  1. convert to factor at very end (adding new class to factor is hard)
   #  2. It is a design choice whether to add classes with 0 cells or not:
@@ -220,3 +233,54 @@ classify <- function(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#' Refine cell type labels with knn classifier
+#' 
+#' Assigns the label that most neighbors have, given it is more than
+#' `min_knn_prob`.
+#' I've found empirically on the MALT data that `min_knn_prob=0.5` gives 
+#' good results, whether you classify the entire data set or just a single
+#' cell type.
+#' It simply excludes some of the cells that have more than 2 cell types in their
+#' neighborhood and none is much stronger than the others,
+#' so this is a reasonable, conservative filtering.
+#'
+#' @param labels Cell type labels as character or factor.
+#' @param neighbors Neighbor graph, pass `obj$neighbors`.
+#' @param min_knn_prob Value between 0 and 1, defaults to 0.5.
+#' If the 'winning label' is below this proportion of kNN that have it,
+#' knn_refine will return "Unassigned".
+#'
+#' @return Character vector with refined labels.
+#'
+knn_refine <- function(labels, neighbors, min_knn_prob = 0.5) {
+  result_classes <- unique(as.character(labels))
+  neighbor_class_counts <- sapply(
+    result_classes,
+    function(class) pool_across_neighbors(as.numeric(labels == class), 
+                                          neighbors))
+  n_neighbors <- rowSums(neighbor_class_counts) # can be different for each cell
+  
+  refined_labels <- sapply(1:nrow(neighbor_class_counts), function(i) {
+    x <- neighbor_class_counts[i,,drop=TRUE]
+    ifelse(max(x) / n_neighbors[i] >= min_knn_prob,
+           result_classes[which.max(x)],
+           "Unassigned")
+  })
+  
+  refined_labels 
+  
+}
+  

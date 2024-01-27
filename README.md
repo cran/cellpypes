@@ -71,13 +71,13 @@ cellpypes input has four slots:
     data.frame or tibble with two columns and one row per cell.
 -   `neighbors`: index matrix with one row per cell and k-nearest
     neighbor indices in columns. We recommend k=50, but generally
-    15&lt;k&lt;100 works well. Here are two ways to get the `neighbors`
+    15\<k\<100 works well. Here are two ways to get the `neighbors`
     index matrix:
     -   Use `find_knn(featureMatrix)$idx`, where featureMatrix could be
         principal components, latent variables or normalized genes
         (features in rows, cells in columns).
     -   use `as(seurat@graphs[["RNA_nn"]], "dgCMatrix")>.1` to extract
-        the kNN graph computed on RNA. This also works with RNA\_snn,
+        the kNN graph computed on RNA. This also works with RNA_snn,
         wknn/wsnn or any other available graph – check with
         `names(seurat@graphs)`.
 
@@ -94,12 +94,10 @@ obj <- list(
 
 # Object from Seurat:
 obj <- list(
-   list(
     raw      =SeuratObject::GetAssayData(seurat, "counts"),
     neighbors=as(seurat@graphs[["RNA_nn"]], "dgCMatrix")>.1, # sometims "wknn"
     embed    =FetchData(seurat, dimension_names),
     totalUMI = seurat$nCount_RNA
-  ) 
 )
 
 # Object from Seurat (experimental short-cut):
@@ -150,6 +148,7 @@ pype <- seurat_object %>%
   rule("Memory CD4+",  "S100A4", ">", 13,  parent="CD4+ T")
 
 plot_classes(pype)+ggtitle("PBMCs annotated with cellpypes")
+#> as(<lgCMatrix>, "dgCMatrix") is deprecated since Matrix 1.5-0; do as(., "dMatrix") instead
 ```
 
 <img src="man/figures/README-pbmc_rules-1.png" width="100%" />
@@ -184,7 +183,7 @@ cellpypes uses CP10K (counts per 10 thousand) in functions `rule` and
     between 0.1 and 10 CP10K.
 -   A typical mammalian cell can be expected to have around 10K UMIs in
     total ([100K
-    mRNAs](http://book.bionumbers.org/how-many-mrnas-are-in-a-cell/)
+    mRNAs](https://book.bionumbers.org/how-many-mrnas-are-in-a-cell/)
     captured with [10 % conversion
     rate](https://kb.10xgenomics.com/hc/en-us/articles/360001539051-What-fraction-of-mRNA-transcripts-are-captured-per-cell-)),
     so 1 CP10K means roughly 1 UMI in a typical cell.
@@ -223,21 +222,21 @@ words:
 
 ### Math/statistics behind cellpypes
 
--   cellpypes models UMI counts as Poisson random variable, which
-    approximates the negative binomial distribution for small expression
-    strengths and [appears to fit single-cell data
-    well](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1861-6).
+-   cellpypes models UMI counts as negative binomial (NB) random
+    variable with a fixed overdisperions of 0.01 (`size` parameter of
+    100 in R’s `pnbinom`), as recommended by Lause, Berens and Kobak
+    ([Genome Biology
+    2021](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02451-7#Sec1)).
 -   The marker gene UMI counts are summed up across a cell and its
     neighbors, forming the pooled counts `K`.
--   Summation allows cellpypes to use the Poisson distribution when
-    comparing expression `K` with the user-provided threshold `t`,
-    because [the sum across Poisson random variables is again a Poisson
-    random
-    variable](https://en.wikipedia.org/wiki/Poisson_distribution#Sums_of_Poisson-distributed_random_variables).
+-   Summation allows cellpypes to use the NB distribution when comparing
+    expression `K` with the user-provided threshold `t`, because [the
+    sum across NB random variables is again an NB random
+    variable](https://en.wikipedia.org/wiki/Negative_binomial_distribution#Distribution_of_a_sum_of_geometrically_distributed_random_variables).
 -   cellpypes checks if the summed counts `K` are likely to have come
-    from a Poisson distribution with rate parameter `t*S`, where `t` is
-    the CP10K threshold supplied through the `rule` function, and `S` is
-    the sum of totalUMI counts from the cell and its neighbors. If it is
+    from an NB distribution with rate parameter `t*S`, where `t` is the
+    CP10K threshold supplied through the `rule` function, and `S` is the
+    sum of totalUMI counts from the cell and its neighbors. If it is
     very likely, the counts are too close to the threshold to decide and
     the cell is left unassigned. If `K` lies above the expectancy `t*S`,
     the cell is marked as positive, if below, it is marked as negative
@@ -289,7 +288,7 @@ pbmc %>%
     (e.g. 1 CP10K), simply because NKG7 goes up to 381 CP10K in some
     cells.
 
-### rule and plot\_last
+### rule and plot_last
 
 Create a few cell type `rule`s and plot the most recent one with
 `plot_last`:
@@ -323,7 +322,7 @@ pbmc %>%
     assignment. You can generate a template with neat text alignment
     with `pype_code_template()`.
 
-### classify and plot\_classes
+### classify and plot_classes
 
 Get cell type labels with `classify` or plot them directly with
 `plot_classes` (which wraps ggplot2 code around `classify`):
@@ -350,7 +349,10 @@ pbmc2 %>% plot_classes(c("Tcell", "CD8+ T")) + ggtitle("T cells")
 
 ``` r
 head(classify(pbmc2))
-#> [1] Unassigned Bcell      Unassigned Unassigned Unassigned Unassigned
+#> AAACATACAACCAC-1 AAACATTGAGCTAC-1 AAACATTGATCAGC-1 AAACCGTGCTTCCG-1 
+#>       Unassigned            Bcell       Unassigned       Unassigned 
+#> AAACCGTGTATGCG-1 AAACGCACTGGTAC-1 
+#>       Unassigned       Unassigned 
 #> Levels: Bcell CD14+ Mono CD8+ T Unassigned
 ```
 
@@ -368,7 +370,7 @@ head(classify(pbmc2))
     (e.g. `Tcell` and `CD8+ T`), the more detailed class is returned
     (`CD8+ T`).
 
-### class\_to\_deseq2
+### class_to_deseq2
 
 Let’s imagine the PBMC data had multiple patients and treatment
 conditions (we made them up here for illustraion):
@@ -405,26 +407,26 @@ dds <- DESeq(dds)
 #> final dispersion estimates
 #> fitting model and testing
 data.frame(results(dds)) %>% arrange(padj) %>% head
-#>                  baseMean log2FoldChange     lfcSE         stat       pvalue
-#> GPS1            8.6843786      1.8672676 0.4857916  3.843762680 0.0001211622
-#> YWHAB         103.9834701      0.5056233 0.1303942  3.877651683 0.0001054696
-#> AL627309.1      0.2517306     -0.4637681 2.2839665 -0.203053829 0.8390929591
-#> AP006222.2      0.1505561      0.0171219 3.1165397  0.005493882 0.9956165384
-#> RP11-206L10.2   0.0876921     -0.4637718 3.1165397 -0.148809843 0.8817036838
-#> LINC00115       0.5822425      0.4344445 1.5861918  0.273891551 0.7841679649
+#>                  baseMean log2FoldChange     lfcSE         stat    pvalue
+#> AL627309.1     0.25114064    -0.46193495 2.2886865 -0.201834087 0.8400464
+#> AP006222.2     0.15001429     0.01895508 3.1165397  0.006082093 0.9951472
+#> RP11-206L10.2  0.08742633    -0.46193859 3.1165397 -0.148221631 0.8821679
+#> LINC00115      0.58340105     0.43747304 1.5879796  0.275490341 0.7829395
+#> SAMD11         0.08742633    -0.46193859 3.1165397 -0.148221631 0.8821679
+#> NOC2L         12.53882917    -0.57349677 0.3465506 -1.654871847 0.0979505
 #>                    padj
-#> GPS1          0.8898756
-#> YWHAB         0.8898756
-#> AL627309.1    0.9998075
-#> AP006222.2    0.9998075
-#> RP11-206L10.2 0.9998075
-#> LINC00115     0.9998075
+#> AL627309.1    0.9998786
+#> AP006222.2    0.9998786
+#> RP11-206L10.2 0.9998786
+#> LINC00115     0.9998786
+#> SAMD11        0.9998786
+#> NOC2L         0.9998786
 ```
 
 In this dummy example, there is no real DE to find because we assigned
 cells randomly to treated/control.
 
-### pseudobulk and pseudobulk\_id
+### pseudobulk and pseudobulk_id
 
 Instead of piping into DESeq2 directly, you can also form pseudobulks
 with `pseudobulk` and helper function `pseudobulk_id`. This can be

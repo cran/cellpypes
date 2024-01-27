@@ -1,3 +1,19 @@
+# cellpypes 0.3.0
+
+# cellpypes 0.2.1
+
+* fix documentation to pass new CRAN checks
+
+# cellpypes 0.2.0
+
+* use Negative Binomial instead of Poisson
+* `classify` has `knn_refine` argument
+* `pype_from_seurat` has parameter `graph_name` now (#17). 
+* `pype_from_seurat` is called by `rule` and `feat` automatically
+* minor:
+  - pype_code_template checks it's input is integer
+
+
 # cellpypes 0.1.3
 
 * introduced `verbose` argument in function `feat`

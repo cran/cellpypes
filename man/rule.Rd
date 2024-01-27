@@ -69,7 +69,7 @@ It is ok to mix rules with and without \code{use_CP10K=TRUE}.
 \section{cellpypes Objects}{
 
 A cellpypes object is a \link[base]{list} with four slots:
-\itemize{
+\describe{
 \item{\code{raw }}{(sparse) matrix with genes in rows, cells in columns}
 \item{\code{totalUMI }}{the colSums of obj$raw}
 \item{\code{embed }}{two-dimensional embedding of the cells, provided as data.frame

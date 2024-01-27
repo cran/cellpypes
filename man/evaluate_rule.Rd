@@ -4,7 +4,7 @@
 \alias{evaluate_rule}
 \title{Evaluate rule to obtain positive / negative cells}
 \usage{
-evaluate_rule(obj, feature, operator, threshold)
+evaluate_rule(obj, feature, operator, threshold, overdispersion = 0.01)
 }
 \arguments{
 \item{obj}{A cellpypes object, see section \strong{cellpypes Objects} below.}
@@ -15,9 +15,16 @@ evaluate_rule(obj, feature, operator, threshold)
 "<" for negative markers (MS4A1-).}
 
 \item{threshold}{Numeric scalar with the expression threshold separating positive
-from negative cells.}
+from negative cells. Evaluate_rule expects a plain fraction, not CP10K
+(while rule has the use_CP10K argument).}
 
-\item{class}{A character scalar with the class.}
+\item{overdispersion}{Defaults to 0.01, only change it if you know
+what you are doing.
+If set to 0, the NB simplifies to the Poisson distribution, and larger
+values give more variance.
+The 0.01 default value follows the recommendation by
+Lause, Berens and Kobak (Genome Biology 2021) to use
+\code{size=100} in \link[stats]{pnbinom} for typical data sets.}
 }
 \value{
 logical vector stating for each cell whether the rule is true.
@@ -28,7 +35,7 @@ The rule is defined by feature, operator and threshold.
 \section{cellpypes Objects}{
 
 A cellpypes object is a \link[base]{list} with four slots:
-\itemize{
+\describe{
 \item{\code{raw }}{(sparse) matrix with genes in rows, cells in columns}
 \item{\code{totalUMI }}{the colSums of obj$raw}
 \item{\code{embed }}{two-dimensional embedding of the cells, provided as data.frame

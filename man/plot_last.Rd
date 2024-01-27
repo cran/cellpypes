@@ -9,7 +9,8 @@ plot_last(
   show_feat = TRUE,
   what = "rule",
   fast = NULL,
-  legend_rel_width = 0.3
+  legend_rel_width = 0.3,
+  overdispersion = 0.01
 )
 }
 \arguments{
@@ -22,10 +23,14 @@ the relevant gene.}
 
 \item{fast}{Set this to TRUE if you want fast plotting in spite of many cells
 (using the scattermore package). If NULL (default), cellpypes decides
-automatically and fast plotting is done for more than 10k cells.}
+automatically and fast plotting is done for more than 10k cells, if FALSE
+it always uses \code{geom_point}.}
 
 \item{legend_rel_width}{Relative width compared to the other two plots
 (only relevant if \code{show_feat=TRUE}).}
+
+\item{overdispersion}{Defaults to 0.01, only change if you know what you
+are doing. See further \link[cellpypes]{classify}.}
 }
 \value{
 Returns a ggplot2 object with the plot.
@@ -36,7 +41,7 @@ Plot the last modified rule or class
 \section{cellpypes Objects}{
 
 A cellpypes object is a \link[base]{list} with four slots:
-\itemize{
+\describe{
 \item{\code{raw }}{(sparse) matrix with genes in rows, cells in columns}
 \item{\code{totalUMI }}{the colSums of obj$raw}
 \item{\code{embed }}{two-dimensional embedding of the cells, provided as data.frame

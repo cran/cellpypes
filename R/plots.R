@@ -12,6 +12,8 @@
 #' @template param_fast
 #' @param legend_rel_width Relative width compared to the other two plots
 #' (only relevant if \code{show_feat=TRUE}). 
+#' @param overdispersion Defaults to 0.01, only change if you know what you
+#' are doing. See further \link[cellpypes]{classify}.
 #'
 #' @return Returns a ggplot2 object with the plot.
 #' 
@@ -26,7 +28,7 @@
 #' @examples
 #' plot_last(rule(simulated_umis, "T", "CD3E",">", 1))
 plot_last <- function(obj, show_feat=TRUE, what="rule", fast=NULL,
-                      legend_rel_width=0.3) {
+                      legend_rel_width=0.3, overdispersion=0.01) {
   check_obj(obj)
   if(is.null(fast)) fast <- ifelse(ncol(obj$raw)>10e3, TRUE, FALSE)
   stopifnot(is.logical(fast) && length(fast)==1)
@@ -37,7 +39,8 @@ plot_last <- function(obj, show_feat=TRUE, what="rule", fast=NULL,
     boolean=evaluate_rule(obj      = obj,
                           feature  = last_rule$feature,
                           operator = last_rule$operator, 
-                          threshold=last_rule$threshold)
+                          threshold=last_rule$threshold,
+                          overdispersion=overdispersion)
     plot_title <- paste0(last_rule$feature, " ", last_rule$operator, " ",
                          1e4*last_rule$threshold, " CP10K")
   } else if (what=="class") {
@@ -100,6 +103,7 @@ plot_last <- function(obj, show_feat=TRUE, what="rule", fast=NULL,
 #' @return A ggplot2 object.
 #' @template cellpypes_obj
 #' @template handling_overlap
+#' @template knn_refine
 #' 
 #' @export
 #' 
@@ -109,18 +113,21 @@ plot_last <- function(obj, show_feat=TRUE, what="rule", fast=NULL,
 #' plot_classes(rule(simulated_umis, "T", "CD3E",">", 1))
 plot_classes <- function(obj,
                          classes=NULL,
+                         knn_refine=0,
                          replace_overlap_with="Unassigned", 
                          return_logical_matrix =FALSE,
                          fast = NULL,
                          point_size=.4,
                          point_size_legend=2,
-                         base_size=15) {
+                         base_size=15,
+                         overdispersion=0.01) {
   check_obj(obj)
   if(is.null(fast)) fast <- ifelse(ncol(obj$raw)>10e3, TRUE, FALSE)
   stopifnot(is.logical(fast) && length(fast)==1)
   
   labels <- classify(obj,
                      classes=classes, 
+                     knn_refine = knn_refine,
                      replace_overlap_with=replace_overlap_with, 
                      return_logical_matrix=return_logical_matrix) 
   if(is.logical(labels)) stop("Please set return_logical_matrix to FALSE.")
@@ -188,6 +195,7 @@ plot_classes <- function(obj,
 #' @examples
 #' feat(simulated_umis, "CD3E")
 feat <- function(obj, features, fast=NULL, verbose=TRUE, ...) {
+  if(inherits(obj, "Seurat")) {obj <- pype_from_seurat(obj)}
   check_obj(obj)
 
   if(is.null(fast)) fast <- ifelse(ncol(obj$raw)>10e3, TRUE, FALSE)
@@ -248,7 +256,7 @@ feat <- function(obj, features, fast=NULL, verbose=TRUE, ...) {
     } else {
       dat$expr <- ifelse(dat$expr > 0,
                          dat$expr,
-                         min(dat$expr[dat$expr>0])/10)
+                         min(dat$expr[dat$expr>0], na.rm = TRUE)/10)
     }
     p <- ggplot(dat,
            aes_string(x = "X1", y = "X2", col = "expr")) +

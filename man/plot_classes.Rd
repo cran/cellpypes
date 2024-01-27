@@ -7,12 +7,14 @@
 plot_classes(
   obj,
   classes = NULL,
+  knn_refine = 0,
   replace_overlap_with = "Unassigned",
   return_logical_matrix = FALSE,
   fast = NULL,
   point_size = 0.4,
   point_size_legend = 2,
-  base_size = 15
+  base_size = 15,
+  overdispersion = 0.01
 )
 }
 \arguments{
@@ -22,6 +24,11 @@ plot_classes(
 If NULL (the default), plots finest available cell types
 (all classes that are not parent of any other class).}
 
+\item{knn_refine}{Numeric between 0 and 1. If 0, do not refine labels
+obtained from UMI count pooling.
+If larger than 0 (recommended: 0.1), cellpypes will try to label
+unassigned cells by majority vote, see section \strong{knn_refine} below.}
+
 \item{replace_overlap_with}{Character string, by default: \code{"Unassigned"}.
 See section \strong{Handling overlap}.}
 
@@ -29,11 +36,13 @@ See section \strong{Handling overlap}.}
 a logical matrix with
 classes in columns and cells in rows is returned instead of resolving
 overlaps with \code{replace_overlap_with}.
-If a single class is supplied, the matrix has exactly one}
+If a single class is supplied, the matrix has exactly one
+column and the user can pipe it into "drop" to convert it to a vector.}
 
 \item{fast}{Set this to TRUE if you want fast plotting in spite of many cells
 (using the scattermore package). If NULL (default), cellpypes decides
-automatically and fast plotting is done for more than 10k cells.}
+automatically and fast plotting is done for more than 10k cells, if FALSE
+it always uses \code{geom_point}.}
 
 \item{point_size}{Dot size used by \link[ggplot2]{geom_point}.}
 
@@ -42,6 +51,14 @@ Legend colors are easier to read with larger points.}
 
 \item{base_size}{The base_size of \link[ggplot2]{theme_bw}, i.e.
 how large text is displayed. Default: 15.}
+
+\item{overdispersion}{Defaults to 0.01, only change it if you know
+what you are doing.
+If set to 0, the NB simplifies to the Poisson distribution, and larger
+values give more variance.
+The 0.01 default value follows the recommendation by
+Lause, Berens and Kobak (Genome Biology 2021) to use
+\code{size=100} in \link[stats]{pnbinom} for typical data sets.}
 }
 \value{
 A ggplot2 object.
@@ -52,7 +69,7 @@ Call and visualize 'classify' function
 \section{cellpypes Objects}{
 
 A cellpypes object is a \link[base]{list} with four slots:
-\itemize{
+\describe{
 \item{\code{raw }}{(sparse) matrix with genes in rows, cells in columns}
 \item{\code{totalUMI }}{the colSums of obj$raw}
 \item{\code{embed }}{two-dimensional embedding of the cells, provided as data.frame
@@ -95,6 +112,37 @@ parent (Ttox) or any other ancestor (Tcell), but instead the
 most detailed cell type (PD1+Ttox) is returned.
 
 All of the above is also true for \code{plot_classes}, as it wraps \code{classify}.
+}
+
+\section{knn_refine}{
+
+With \code{knn_refine > 0}, cellpypes refines cell type labels with a kNN classifier.
+
+By default, cellpypes only assigns cells to a class if all relevant rules
+apply.
+In other words, all marker gene UMI counts in the cell's neighborhood all have to
+be clearly above/below their threshold.
+Since UMI counts are sparse (even after neighbor pooling done by cellpypes),
+this can leave many cells unassigned.
+
+It is reasonable to assume an unassigned cell is of the same cell type as the
+majority of its nearest neighbors.
+Therefore, cellpypes implements a kNN classifier to further refine labels
+obtained by
+manually thresholding UMI counts.
+\code{knn_refine = 0.3} means a cell is assigned the class label held by
+most of its neighbors unless no class gets more than 30 \%.
+If most neighbors are unassigned, the cell will also be set to "Unassigned".
+Choosing \code{knn_refine = 0.3} gives results reminiscent of clustering
+(which assigns all cells),
+while \code{knn_refine = 0.5} leaves cells 'in between' two similar
+cell types unassigned.
+
+We recommend looking at \code{knn_refine =  0} first as it's faster and
+more directly tied to marker gene expression.
+If assigning all cells is desired, we recommend \code{knn_refine = 0.3} or lower,
+while \code{knn_refine = 0.5} makes cell types more 'crisp' by setting cells
+'in between' related subtypes to "Unassigned".
 }
 
 \examples{
